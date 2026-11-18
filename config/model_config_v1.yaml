@@ -1,0 +1,89 @@
+# PF1/PF2 market-risk study: model configuration
+# Status: FROZEN v1.0 on 2026-11-04. Both decisions confirmed by the user (recommended options).
+# Once confirmed, this file is frozen; any change requires a new version number.
+version: "1.0"
+created: "2026-11-04"
+data:
+  snapshot: "pf2_raw_data.zip (received 2026-11-04; hashes in step1 received_manifest.csv)"
+  history_start: "2019-03-01"
+  returns: "daily simple total return from Yahoo Finance adjusted close"
+  calendar: "SPY trading sessions"
+dates:
+  T0: "2026-06-12"            # formation date; information cutoff = T0 close
+  first_holding_day: "2026-06-15"
+  oos_end: "2026-08-31"
+portfolios:
+  PF1: [DMLP, ARLP, WES, UAN, ET, HESM, MPLX, SPH, EPD, CQP, DKL, GEL, MMLP, PAA, USAC, CAPL, GLP, SUN, WLKP, BSM, MNR, TXO, NRP]
+  PF2: [DMLP, ARLP, WES, UAN, HESM, MPLX, EPD, CQP, CAPL, GLP, WLKP, BSM, NRP]
+  weighting: equal_at_T0
+  pre_T0_history: constant_T0_weights
+  missing_names_rule: "redistribute a missing name's weight equally across names with data that day"
+  post_T0: buy_and_hold_drift_no_rebalance
+var_es:
+  horizon_days: 1
+  var_confidence: [0.99, 0.95]
+  es_confidence: 0.975
+  hs: {window: 250, var_rank_rule: "ceil(alpha*n)-th ascending loss", es_rule: "mean of worst n*(1-alpha) losses, fractional boundary"}
+  hs_robustness_window: 500
+  ewma: {lambda: 0.94, seed_days: 60, seed_start: "2019-03-01", mean: 0, distribution: normal, level: portfolio}
+  fhs: {lambda: 0.94, window: 250}
+  stressed: {window: 250, search_range: ["2019-03-01", "2026-06-12"], select_by: "max PF1 HS 97.5% ES", apply_same_window_to_PF2: true}
+  primary_comparison_metric: hs_es_975   # confirmed 2026-11-04; hs_var_99 and hs_var_95 reported as secondary
+comparison:
+  bootstrap: {type: stationary_block, mean_block_days: 10, reps: 5000, seed: 42, ci: 0.95}
+  random_portfolios:
+    size: 13
+    universe: PF1
+    sets: [all_subsets, subsector_cap_40pct]
+decomposition:
+  component_volatility: {covariance: sample, check: ledoit_wolf, window: 250}
+  component_es: {method: hs_tail_scenarios, window: 250}
+backtest:
+  models: [hs, ewma, fhs]
+  pre_T0: {start: "2024-06-14", end: "2026-06-12", forecast_days: 500, weights: constant_T0}
+  oos: {start: "2026-06-15", end: "2026-08-31", forecast_days: 54, weights: buy_and_hold_bod}
+  exception_rule: "loss strictly greater than VaR"
+  tests: [kupiec_pof, christoffersen_independence, exact_binomial, basel_traffic_light_250d_99]
+  traffic_light: {green: [0, 4], yellow: [5, 9], red_from: 10}
+  christoffersen_min_cell: 5
+stress:
+  frequency: weekly_friday
+  max_endpoint_staleness_days: 3
+  calibration: {start: "2019-03-01", end: "2026-06-12"}
+  calibration_sensitivity: {start: "2023-06-16", end: "2026-06-12"}
+  factors:
+    market: SPY_total_return
+    oil: "WTI_pct_change; nonpositive price days set to missing"
+    rate: "DGS10/100 first difference"
+    credit: "HYG total return residual on SPY (orthogonalized)"
+  uncertainty: {method: portfolio_level_regression, cov: newey_west, lags: 4, ci: 0.95}
+  scenario_set_primary: calibrated   # confirmed 2026-11-04; severe_legacy reported as sensitivity
+  scenarios_calibrated:   # one-week shocks: [SPY, WTI, DGS10_change_decimal, HYG]
+    A1_equity_crash: [-0.15, 0.0, 0.0, 0.0]
+    A2_oil_crash: [0.0, -0.35, 0.0, 0.0]
+    A3_oil_spike: [0.0, 0.30, 0.0, 0.0]
+    A4_rates_up: [0.0, 0.0, 0.005, 0.0]
+    A5_credit_shock: [0.0, 0.0, 0.0, -0.10]
+    C1_energy_credit_crisis: [-0.15, -0.35, -0.003, -0.10]
+    C2_oil_spike_selloff: [-0.08, 0.30, 0.004, -0.04]
+  scenarios_severe_legacy:
+    B_severe: [-0.20, -0.30, 0.02, 0.0]
+  historical_replays:
+    H1_covid_oil_war: ["2020-02-21", "2020-03-20"]
+    H2_2022_rates: ["2022-03-11", "2022-04-08"]
+    H3_2025_tariffs: ["2025-03-28", "2025-04-11"]
+    H4_2026_oil_spike: ["2026-02-13", "2026-03-13"]
+  reverse_stress: {loss: 0.15, horizon: one_week, method: min_mahalanobis}
+  distribution_stress: {ocf_shocks: [-0.10, -0.20], threshold: 0.80, applies_to: fixed_payers_PF2}
+limits:
+  hs_var_99: 0.04
+  hs_es_975: 0.05
+  single_name_weight: 0.20
+  subsector_weight: 0.40
+  scenario_loss_A_C: 0.20
+  amber_from_utilization: 0.80
+decision_rules:
+  lower_risk_claim: "95% bootstrap CI of PF2-PF1 entirely below 0 on the primary metric"
+  model_acceptable: "Kupiec p >= 0.05 and traffic light green"
+  provisional_stress: "shock multiple > 1 or portfolio regression R2 < 0.10"
+  no_causal_claim: true

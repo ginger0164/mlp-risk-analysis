@@ -1,0 +1,7 @@
+{
+  "config_sha256": "8123166227556e32ccbadf06fb0b1bcba8e9236e5a8a8a19897405ffbb6d4bdf",
+  "n_combos": 1144066,
+  "n_capped": 312851,
+  "stress_end_PF1": "2020-06-11",
+  "stress_end_PF2": "2020-06-11"
+}
