@@ -9,7 +9,7 @@ Author: Ginger Gao. Formation date T0 = 12 June 2026; data through 31 August 202
 
 **Full findings:** [`FINDINGS.md`](FINDINGS.md)
 
-> This project was carried out at **Hyde Park Alpha** and is published here with the firm's permission as a work sample. The firm's internal materials (its screening workbooks and the original project specification) have been removed; what remains is the methodology, the code, the market data and the results. Views and any errors are the author's own.
+> This project was carried out at **Hyde Park Alpha** and is published here with the firm's permission as a work sample. The firm's internal materials (its screening workbooks and the original project specification) are not available to public; what's available is the methodology, the code, the market data and the results. Views and any errors are the author's own.
 >
 > Hypothetical pre-investment research on public market data. The portfolios are not actual holdings, and nothing here is investment advice.
 
